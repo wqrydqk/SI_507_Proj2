@@ -1,5 +1,5 @@
 #################################
-##### Name: Buyao Lyu
+##### Name: Buyao Lyu     #######
 ##### Uniqname: wqrydqk@umich.edu
 #################################
 
@@ -7,7 +7,6 @@ from bs4 import BeautifulSoup
 import requests
 import json
 import secrets  # file that contains your API key
-import datetime
 
 
 class NationalSite:
@@ -55,18 +54,26 @@ def build_state_url_dict():
         key is a state name and value is the url
         e.g. {'michigan':'https://www.nps.gov/state/mi/index.htm', ...}
     '''
+
     filename = 'states.json'
     cache_dict = open_cache(filename)
+    # note: the keys in this dictionary are state names, and the values are
+    #       the corresponding state urls.
+    # if the dictionary is not empty, then it has been fetched, we can
+    # use cache to get the data
     if cache_dict:
-        print('Using cache-1')
+        print('Using cache')
         return cache_dict
     else:
-        print('Fetching-1')
+        print('Fetching')
         url_to_scrape = 'https://www.nps.gov/index.htm'
         base_url = 'https://www.nps.gov'
         response = requests.get(url_to_scrape)
         soup = BeautifulSoup(response.text, 'html.parser')
-        result_1 = soup.find('div', class_='SearchBar-keywordSearch input-group input-group-lg').find('ul').find_all('li')
+        result_1 = soup.find(
+            'div', class_='SearchBar-keywordSearch input-group input-group-lg').\
+            find('ul').\
+            find_all('li')
         dict_name_url_state = {}
         for element in result_1:
             state_name = element.text.lower()
@@ -89,10 +96,14 @@ def get_site_instance(site_url):
     instance
         a national site instance
     '''
+
     filename = 'sites_url.json'
     cache_dict = open_cache(filename)
+    # note: the keys in this dictionary are the urls of the sites, and the value
+    #       in this dictionary are nested dictionaries, which have keys:
+    #       'category', 'name', 'address', 'zipcode', and 'phone'.
     if site_url in cache_dict:
-        print('Using cache!-2')
+        print('Using cache')
         site_instance = NationalSite(category=cache_dict[site_url]['category'],
                                      name=cache_dict[site_url]['name'],
                                      address=cache_dict[site_url]['address'],
@@ -100,7 +111,7 @@ def get_site_instance(site_url):
                                      phone=cache_dict[site_url]['phone'])
         return site_instance
     else:
-        print('Fetching!-2')
+        print('Fetching')
         response = requests.get(site_url)
         text_to_parse = response.text
         site_url_dict = {}
@@ -127,6 +138,7 @@ def get_site_instance(site_url):
 
             site_phone_1 = result_2.find('p', recursive=False).find('span', itemprop="telephone").text.strip()
             site_phone_2_res = result_2.find('p', recursive=False).find('span', itemprop="telephoneExtension")
+            # if there exists telephoneExtension, then
             if site_phone_2_res:
                 site_phone_2 = site_phone_2_res.text.strip()
                 site_phone = site_phone_1 + " " + site_phone_2
@@ -136,7 +148,11 @@ def get_site_instance(site_url):
             site_add = 'Site working on!'
             site_zipcode = 'Site working on!'
             site_phone = 'Site working on!'
-        site_instance = NationalSite(category=site_type, name=site_name, address=site_add, zipcode=site_zipcode, phone=site_phone)
+        site_instance = NationalSite(category=site_type,
+                                     name=site_name,
+                                     address=site_add,
+                                     zipcode=site_zipcode,
+                                     phone=site_phone)
         site_url_dict['category'] = site_type
         site_url_dict['name'] = site_name
         site_url_dict['address'] = site_add
@@ -164,11 +180,14 @@ def get_sites_for_state(state_url):
     national_sites = []
     filename = 'states_url.json'
     cache_dict = open_cache(filename)
+    # note: the keys in this dictionary are the state urls, and the values are
+    #       nested lists. Each list contains the site urls under the given
+    #       state url keys.
     if state_url in cache_dict:
-        print('Using cache!-3')
+        print('Using cache')
         href_list = cache_dict[state_url]
     else:
-        print('Fetching!-3')
+        print('Fetching')
         response = requests.get(state_url)
         text_to_parse = response.text
         cache_dict[state_url] = text_to_parse
@@ -182,8 +201,9 @@ def get_sites_for_state(state_url):
             href = 'https://www.nps.gov' + href_part + 'index.htm'
             href_list.append(href)
         cache_dict[state_url] = href_list
+        # save the cache_dict
         save_cache(cache_dict, filename)
-
+    # construct the objects
     for each_href in href_list:
         national_site = get_site_instance(each_href)
         national_sites.append(national_site)
@@ -206,11 +226,14 @@ def get_nearby_places(site_object):
 
     filename = 'near_by.json'
     cache_dict = open_cache(filename)
+    # note: the key of this dictionary is the zipcode of the given site, and
+    #       the value of the corresponding key is the dictionary converted from
+    #       json from MapQuest API
     if site_object.zipcode in cache_dict:
-        print('Using cache-4!')
+        print('Using cache')
         return cache_dict[site_object.zipcode]
     else:
-        print('Fetching-4!')
+        print('Fetching')
         base_url = 'https://www.mapquestapi.com/search/v2/radius'
         params = {'key': secrets.API_KEY,
                   'origin': site_object.zipcode,
@@ -265,12 +288,32 @@ def save_cache(cache_dict, cache_filename):
     '''
 
     dumped_json_cache = json.dumps(cache_dict)
-    fw = open(cache_filename,"w")
+    fw = open(cache_filename, "w")
     fw.write(dumped_json_cache)
     fw.close()
 
 
 def func_for_part3(state_name, state_dict):
+    ''' print the output following the example given in Part 3
+
+    given the parameter state_name, a string, and also state_dict, a dictionary
+    that maps the state name to the corresponding state url, this function
+    print out the output as shown in example, and also returns a list of
+    NationalSite object (in the given state)
+
+    Parameters
+    ----------
+    state_name: str
+        The state to search for National sites
+    state_dict: dict
+        A dictionary that maps the state to its url
+
+    Returns
+    -------
+    list
+        a list containing the NationalSite object in the given state
+    '''
+
     url_to_use = state_dict[state_name]
     my_sites_list = get_sites_for_state(url_to_use)
     num_of_sites = len(my_sites_list)
@@ -284,9 +327,26 @@ def func_for_part3(state_name, state_dict):
 
 
 def func_for_part4(site_object):
+    ''' print the nearby places given a site object
+
+    This function print the nearby places given the site object(up to 10, if
+    any), and the output follows the format below:
+    - <name> (<category>): <street address>
+
+    Parameters
+    ----------
+    site_object: object
+        an instance of the class NationalSite
+
+    Returns
+    -------
+    None
+    '''
+
     result_dict = get_nearby_places(site_object)
     print('-'*40)
-    print(f"Places near {site_object.name}")
+    print(f"Places near {site_object.name},"
+          f" (total: {result_dict['resultsCount']})")
     print('-'*40)
     if result_dict['resultsCount'] != 0:
         result_list = result_dict['searchResults']
@@ -294,9 +354,10 @@ def func_for_part4(site_object):
         for num in range(len(result_list)):
             information_dict = {}
             information_dict['name'] = result_list[num]['name']
-            information_dict['category'] = result_list[num]['fields']['group_sic_code_name_ext']
-            # information_dict['category'] = 'ppp'
-            information_dict['street_address'] = result_list[num]['fields']['address']
+            information_dict['category'] = \
+                result_list[num]['fields']['group_sic_code_name_ext']
+            information_dict['street_address'] = \
+                result_list[num]['fields']['address']
             information_dict['city_name'] = result_list[num]['fields']['city']
             total_dict[num] = information_dict
 
@@ -332,16 +393,23 @@ def func_for_part4(site_object):
 
         for key in modified_total_dict:
             temp_value = modified_total_dict[key]
-            string_to_print = f"- {temp_value['name']} ({temp_value['category']}): {temp_value['street_address']}, {temp_value['city_name']}"
+            string_to_print = f"- {temp_value['name']} " \
+                              f"({temp_value['category']}):" \
+                              f" {temp_value['street_address']}, " \
+                              f"{temp_value['city_name']}"
             print(string_to_print)
 
     else:
         print('No information collected!!!!!!')
 
 
-
 if __name__ == "__main__":
-    # part 3 starts here##
+    ########################
+    ## part 3 starts here ##
+    ########################
+    # print('#'*40)
+    # print('#'*16, 'PART 3', '#'*16)
+    # print('#' * 40)
     # state_dict = build_state_url_dict()
     # while True:
     #     prompt = 'Enter a state name (e.g. Michigan, michigan) or "exit":'
@@ -354,70 +422,56 @@ if __name__ == "__main__":
     #         else:
     #             print('this is not a name of a state, try again!')
 
-    # test
-    # state_dict = build_state_url_dict()
-    # i = 1
-    # for state in state_dict:
-    #     print('********************************')
-    #     print(f'state: {state}')
-    #     print('*******************************')
-    #     func_for_part3(state, state_dict)
-    #     print(i)
-    #     i = i + 1
-
-    ## part 4 starts here
+    ########################
+    ## part 4 starts here ##
+    ########################
+    # print('#' * 40)
+    # print('#' * 16, 'PART 4', '#' * 16)
+    # print('#' * 40)
+    # # we test the site at the url:https://www.nps.gov/slbe/index.htm
     # test_url = 'https://www.nps.gov/slbe/index.htm'
     # new_site_obj = get_site_instance(test_url)
     # func_for_part4(new_site_obj)
 
-    # test ##
-    # not_valid = ['Site working on!', 'Not provided!']
-    # site_urls_dict = open_cache('states_url.json')
-    # for key in site_urls_dict:
-    #     sites_url_list = site_urls_dict[key]
-    #     for element in sites_url_list:
-    #         print('******************************************')
-    #         temp_site_obj = get_site_instance(element)
-    #         func_for_part4(temp_site_obj)
-    #         print('+++++++++++++++++++++++++++++++++++++++++++++++++++++')
-
-    # part 5 starts here #
+    ########################
+    ## part 5 starts here ##
+    ########################
     # Create an interactive search interface
+    print('#' * 40)
+    print('#' * 16, 'PART 5', '#' * 16)
+    print('#' * 40)
     my_state_dict = build_state_url_dict()
     sites_list = []
     while True:
         if len(sites_list) == 0:
             input_str = input('Enter a state name (e.g. Michigan, michigan) or "exit":')
-            if input_str.lower() == "exit":
+            if input_str.strip().lower() == "exit":
                 break
             else:
                 if input_str.strip().lower() in my_state_dict:
                     sites_list = func_for_part3(input_str.strip().lower(), my_state_dict)
                 else:
                     print('[Error] Enter a proper state name!')
+                    sites_list = []
+
         if len(sites_list) != 0:
             input_str = input('Choose a number for detail search or "exit" or "back":')
-            if input_str.isnumeric():
-                if 0 < int(input_str) <= len(sites_list):
-                    site_instance_picked = sites_list[int(input_str) - 1]
+            if input_str.strip().isnumeric():
+                if 0 < int(input_str.strip()) <= len(sites_list):
+                    site_instance_picked = sites_list[int(input_str.strip()) - 1]
                     func_for_part4(site_instance_picked)
                 else:
                     print('[Error] Invalid input!!')
-            elif input_str.lower() == "exit":
+            elif input_str.strip().lower() == "exit":
                 break
-            elif input_str.lower() == "back":
+            elif input_str.strip().lower() == "back":
                 sites_list = []
             else:
                 print('you should input a valid number, "exit" or "back" here!')
 
-    # test
-    # t1 = datetime.datetime.now().timestamp()
-    # test_dict = build_state_url_dict()
-    # for state in test_dict:
-    #     sites = func_for_part3(state, test_dict)
-    #     for site in sites:
+    # for element in my_state_dict:
+    #     temp_url = my_state_dict[element]
+    #     print(f'-----{element}---------------------------')
+    #     temp_site_list = get_sites_for_state(temp_url)
+    #     for site in temp_site_list:
     #         func_for_part4(site)
-    #
-    # t2 = datetime.datetime.now().timestamp()
-    # print("time without caching: ", (t2 - t1) * 1000, "ms")
-
