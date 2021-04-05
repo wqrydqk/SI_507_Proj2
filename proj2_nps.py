@@ -468,10 +468,3 @@ if __name__ == "__main__":
                 sites_list = []
             else:
                 print('you should input a valid number, "exit" or "back" here!')
-
-    # for element in my_state_dict:
-    #     temp_url = my_state_dict[element]
-    #     print(f'-----{element}---------------------------')
-    #     temp_site_list = get_sites_for_state(temp_url)
-    #     for site in temp_site_list:
-    #         func_for_part4(site)
